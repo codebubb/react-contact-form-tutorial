@@ -1,20 +1,24 @@
-import React, { ChangeEvent, FormEvent, useState } from "react";
+import React, { ChangeEvent, FormEvent, useRef, useState } from "react";
 import "./App.css";
 import axios from "axios";
+import ReCAPTCHA from 'react-google-recaptcha';
 
 type FormState = {
   email: string;
   name: string;
   message: string;
-}
+};
 
 type ServiceMessage = {
   class: string;
   text: string;
-}
+};
 function App() {
-  const formId = "<enter your form ID>";
+  const formId = "";
   const formSparkUrl = `https://submit-form.com/${formId}`;
+  const recaptchaKey = '';
+  const recaptchaRef = useRef<any>();
+
   const initialFormState = {
     email: "",
     name: "",
@@ -23,7 +27,8 @@ function App() {
 
   const [formState, setFormState] = useState<FormState>(initialFormState);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [message, setMessage ] = useState<ServiceMessage>();
+  const [message, setMessage] = useState<ServiceMessage>();
+  const [recaptchaToken, setReCaptchaToken] = useState<string>();
 
   const submitForm = async (event: FormEvent) => {
     event.preventDefault();
@@ -33,14 +38,26 @@ function App() {
   };
 
   const postSubmission = async () => {
+    const payload = {
+      ...formState,
+      "g-recaptcha-response": recaptchaToken,
+    };
+
     try {
-      const result = await axios.post(formSparkUrl, formState);
+      const result = await axios.post(formSparkUrl, payload);
       console.log(result);
-      setMessage({ class: 'bg-green-500', text: 'Thanks, someone will be in touch shortly.'});
-      setFormState(initialFormState)
+      setMessage({
+        class: "bg-green-500",
+        text: "Thanks, someone will be in touch shortly.",
+      });
+      setFormState(initialFormState);
+      recaptchaRef.current.reset();
     } catch (error) {
       console.log(error);
-      setMessage({ class: 'bg-red-500', text: 'Sorry, there was a problem. Please try again or contact support.'});
+      setMessage({
+        class: "bg-red-500",
+        text: "Sorry, there was a problem. Please try again or contact support.",
+      });
     }
   };
 
@@ -52,6 +69,10 @@ function App() {
     const updatedFormState = { ...formState };
     updatedFormState[key] = value;
     setFormState(updatedFormState);
+  };
+
+  const updateRecaptchaToken = (token: string | null) => {
+    setReCaptchaToken(token as string);
   };
 
   return (
@@ -70,7 +91,11 @@ function App() {
           </span>
           <span>Contact us</span>
         </h1>
-        {message && <div className={`my-4 text-white w-full p-4 ${message.class}`}>{message.text}</div>}
+        {message && (
+          <div className={`my-4 text-white w-full p-4 ${message.class}`}>
+            {message.text}
+          </div>
+        )}
         <form onSubmit={submitForm} className="flex flex-col">
           <div className="my-2 flex flex-col">
             <label htmlFor="name">Name</label>
@@ -102,8 +127,17 @@ function App() {
             ></textarea>
           </div>
 
-          <button disabled={submitting} className="mt-4 my-2 bg-blue-700 text-white w-full p-2 hover:bg-blue-900 transition-colors duration-200">
-            {submitting ? 'Submitting...' : 'Submit'}
+          <ReCAPTCHA
+            ref={recaptchaRef}
+            sitekey={recaptchaKey}
+            onChange={updateRecaptchaToken}
+          />
+
+          <button
+            disabled={submitting}
+            className="mt-4 my-2 bg-blue-700 text-white w-full p-2 hover:bg-blue-900 transition-colors duration-200"
+          >
+            {submitting ? "Submitting..." : "Submit"}
           </button>
         </form>
       </div>
